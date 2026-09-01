@@ -1,4 +1,4 @@
-const CACHE = "dtro-clean-offline-v8-sound";
+const CACHE = "dtro-clean-offline-v9-ios-sound";
 const CORE = [
   "./index.html",
   "./manifest.json",
