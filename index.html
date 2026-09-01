@@ -330,7 +330,7 @@ const SFX={};
 
 function setupAudio(){
   const files={
-    click:"click.wav", correct:"correct.wav", wrong:"wrong.wav",
+    correct:"correct.wav", wrong:"wrong.wav",
     start:"start.wav", count:"count.wav", perfect:"perfect.wav",
     timeout:"timeout.wav"
   };
@@ -345,10 +345,11 @@ function setupAudio(){
 function playSfx(name){
   if(!soundOn || !SFX[name]) return;
   try{
-    const a=SFX[name];
-    a.pause();
-    a.currentTime=0;
-    const p=a.play();
+    const base=SFX[name];
+    base.pause();
+    base.currentTime=0;
+    base.volume=1.0;
+    const p=base.play();
     if(p && p.catch) p.catch(()=>{});
   }catch(e){}
 }
@@ -440,13 +441,15 @@ function reset(){
 }
 $("startBtn").onclick=()=>{
   unlockAudio();
-  playSfx("click");
-  setTimeout(sfxStart,80);
-  setTimeout(countdown,430);
+  sfxStart();
+  countdown();
 };
 $("soundToggle").onclick=()=>{
   soundOn=!soundOn;
-  if(soundOn){ unlockAudio(); setTimeout(()=>playSfx("click"),60); }
+  if(soundOn){
+    unlockAudio();
+    playSfx("correct");
+  }
   updateSoundButton();
 };
 updateSoundButton();
@@ -458,8 +461,8 @@ $("startReset").onclick=()=>{
     stats();
   }
 };
-$("btnO").onclick=()=>{playSfx("click");setTimeout(()=>answer("O"),55);};
-$("btnX").onclick=()=>{playSfx("click");setTimeout(()=>answer("X"),55);};
+$("btnO").onclick=()=>{unlockAudio();answer("O");};
+$("btnX").onclick=()=>{unlockAudio();answer("X");};
 $("adminHot").onclick=()=>{$("adminPanel").classList.add("show");stats()};
 $("closeAdmin").onclick=()=>$("adminPanel").classList.remove("show");
 $("resetStats").onclick=()=>{localStorage.setItem("players","0");localStorage.setItem("perfects","0");stats()};

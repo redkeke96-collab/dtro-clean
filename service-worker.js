@@ -1,9 +1,9 @@
-const CACHE = "dtro-clean-offline-v10-audiofiles";
+const CACHE = "dtro-clean-offline-v11-ios-direct";
 const CORE = [
   "./index.html",
   "./manifest.json",
   "./tagu.png",
-  "./click.wav","./correct.wav","./wrong.wav","./start.wav",
+  "./correct.wav","./wrong.wav","./start.wav",
   "./count.wav","./perfect.wav","./timeout.wav"
 ];
 
