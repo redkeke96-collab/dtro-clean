@@ -24,14 +24,7 @@ body{display:flex;align-items:center;justify-content:center}
 .start-page{flex-direction:column;color:#fff;padding:calc(18px + env(safe-area-inset-top)) clamp(18px,3vw,40px) calc(18px + env(safe-area-inset-bottom))}
 .brand{display:flex;align-items:center;gap:10px;font-size:clamp(16px,1.8vw,22px);font-weight:900}
 .logo{background:#fff;color:var(--dtro);font-weight:1000;padding:6px 10px;border-radius:9px}
-.sound-toggle{
-  border:1px solid rgba(255,255,255,.55);
-  background:rgba(255,255,255,.10);
-  color:#fff;border-radius:999px;
-  padding:7px 11px;font-size:12px;font-weight:900;
-  cursor:pointer;margin-left:auto;margin-right:7px
-}
-.sound-toggle:active{background:rgba(255,255,255,.22)}
+
 .top-reset{
   border:1px solid rgba(255,255,255,.55);
   background:rgba(255,255,255,.10);
@@ -204,7 +197,6 @@ body{display:flex;align-items:center;justify-content:center}
 <section id="startPage" class="page start-page active">
   <div class="brand">
       <div><span class="logo">DTRO</span><span style="margin-left:10px">대구교통공사</span></div>
-      <button id="soundToggle" class="sound-toggle" title="효과음 켜기/끄기">🔊 소리</button>
       <button id="startReset" class="top-reset" title="참여기록 초기화">↻ 리셋</button>
     </div>
   <div class="start-main">
@@ -325,66 +317,6 @@ const $=id=>document.getElementById(id);
 function showPage(id){["startPage","quizPage","resultPage"].forEach(x=>$(x).classList.toggle("active",x===id))}
 function shuffle(a){return [...a].sort(()=>Math.random()-.5)}
 
-let soundOn=true;
-const SFX={};
-
-function setupAudio(){
-  const files={
-    correct:"correct.wav", wrong:"wrong.wav",
-    start:"start.wav", count:"count.wav", perfect:"perfect.wav",
-    timeout:"timeout.wav"
-  };
-  Object.entries(files).forEach(([k,src])=>{
-    const a=new Audio(src);
-    a.preload="auto";
-    a.volume=1.0;
-    SFX[k]=a;
-  });
-}
-
-function playSfx(name){
-  if(!soundOn || !SFX[name]) return;
-  try{
-    const base=SFX[name];
-    base.pause();
-    base.currentTime=0;
-    base.volume=1.0;
-    const p=base.play();
-    if(p && p.catch) p.catch(()=>{});
-  }catch(e){}
-}
-
-// iOS: unlock every audio element from a direct user gesture.
-function unlockAudio(){
-  Object.values(SFX).forEach(a=>{
-    try{
-      a.muted=true;
-      const p=a.play();
-      if(p && p.then){
-        p.then(()=>{
-          a.pause(); a.currentTime=0; a.muted=false;
-        }).catch(()=>{ a.muted=false; });
-      }else{
-        a.pause(); a.currentTime=0; a.muted=false;
-      }
-    }catch(e){ a.muted=false; }
-  });
-}
-
-function sfxStart(){playSfx("start")}
-function sfxCount(){playSfx("count")}
-function sfxCorrect(){playSfx("correct")}
-function sfxWrong(){playSfx("wrong")}
-function sfxPerfect(){playSfx("perfect")}
-function sfxGood(){playSfx("correct")}
-function sfxTimeout(){playSfx("timeout")}
-
-function updateSoundButton(){
-  const b=document.getElementById("soundToggle");
-  if(b) b.textContent=soundOn?"🔊 소리":"🔇 무음";
-}
-setupAudio();
-
 function stats(){
  const p=+(localStorage.getItem("players")||0),f=+(localStorage.getItem("perfects")||0);
  $("players").textContent=p+"명";$("perfects").textContent=f+"명";
@@ -417,7 +349,7 @@ function tick(){
  const displayLeft=Math.max(0,DISPLAY_TOTAL*(1-ratio));
  $("timer").textContent=displayLeft.toFixed(1);
  $("progress").style.width=((1-ratio)*100)+"%";
- if(elapsed>=REAL_DURATION){clearInterval(timerId);timedOut=true;sfxTimeout();finish();}
+ if(elapsed>=REAL_DURATION){clearInterval(timerId);timedOut=true;finish();}
 }
 function answer(v){
  if(locked||timedOut)return;locked=true;
@@ -431,7 +363,7 @@ function answer(v){
 }
 function finish(){
  clearInterval(timerId);showPage("resultPage");$("resultScore").textContent=`${score}/3`;
- if(score===3){sfxPerfect();$("resultTitle").textContent="PERFECT!";$("resultMsg").textContent="청렴한 당신, 최고입니다!"}
+ if(score===3){$("resultTitle").textContent="PERFECT!";$("resultMsg").textContent="청렴한 당신, 최고입니다!"}
  else if(score===2){$("resultTitle").textContent="GOOD!";$("resultMsg").textContent="좋습니다! 한 문제만 더!"}
  else{$("resultTitle").textContent="CHALLENGE!";$("resultMsg").textContent=timedOut?"10초 종료! 다음 도전자에게 기회를!":"오늘도 청렴하게!"}
  save();setTimeout(reset,2300);
@@ -439,11 +371,7 @@ function finish(){
 function reset(){
  $("timer").textContent="10.0";$("progress").style.width="100%";locked=false;timedOut=false;showPage("startPage");
 }
-$("startBtn").onclick=()=>{
-  unlockAudio();
-  sfxStart();
-  countdown();
-};
+$("startBtn").onclick=countdown;
 $("soundToggle").onclick=()=>{
   soundOn=!soundOn;
   if(soundOn){
@@ -461,8 +389,8 @@ $("startReset").onclick=()=>{
     stats();
   }
 };
-$("btnO").onclick=()=>{unlockAudio();answer("O");};
-$("btnX").onclick=()=>{unlockAudio();answer("X");};
+$("btnO").onclick=()=>answer("O");
+$("btnX").onclick=()=>answer("X");
 $("adminHot").onclick=()=>{$("adminPanel").classList.add("show");stats()};
 $("closeAdmin").onclick=()=>$("adminPanel").classList.remove("show");
 $("resetStats").onclick=()=>{localStorage.setItem("players","0");localStorage.setItem("perfects","0");stats()};

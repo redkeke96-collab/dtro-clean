@@ -1,86 +1,43 @@
-const CACHE = "dtro-clean-offline-v11-ios-direct";
-const CORE = [
-  "./index.html",
-  "./manifest.json",
-  "./tagu.png",
-  "./correct.wav","./wrong.wav","./start.wav",
-  "./count.wav","./perfect.wav","./timeout.wav"
-];
-
-async function cacheCore() {
-  const cache = await caches.open(CACHE);
-  for (const url of CORE) {
-    try {
-      const response = await fetch(url, {cache:"reload"});
-      if (response && response.ok) {
-        await cache.put(url, response.clone());
-      }
-    } catch (e) {
-      // Ignore individual failures so SW installation still completes.
-    }
-  }
-}
+const CACHE = "dtro-clean-offline-v12-silent";
+const CORE = ["./index.html","./manifest.json","./tagu.png"];
 
 self.addEventListener("install", event => {
-  event.waitUntil(cacheCore());
+  event.waitUntil((async()=>{
+    const cache=await caches.open(CACHE);
+    for(const url of CORE){
+      try{
+        const r=await fetch(url,{cache:"reload"});
+        if(r.ok) await cache.put(url,r.clone());
+      }catch(e){}
+    }
+  })());
   self.skipWaiting();
 });
 
 self.addEventListener("activate", event => {
   event.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+      Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))
     )
   );
   self.clients.claim();
 });
 
 self.addEventListener("fetch", event => {
-  const req = event.request;
-
-  if (req.mode === "navigate") {
+  const req=event.request;
+  if(req.mode==="navigate"){
     event.respondWith(
-      fetch(req)
-        .then(async resp => {
-          try {
-            const cache = await caches.open(CACHE);
-            await cache.put("./index.html", resp.clone());
-          } catch(e) {}
-          return resp;
-        })
-        .catch(async () => {
-          return (await caches.match("./index.html")) ||
-                 new Response("오프라인 상태이며 캐시가 준비되지 않았습니다.", {
-                   headers: {"Content-Type":"text/plain; charset=utf-8"}
-                 });
-        })
+      fetch(req).then(async r=>{
+        try{
+          const c=await caches.open(CACHE);
+          await c.put("./index.html",r.clone());
+        }catch(e){}
+        return r;
+      }).catch(()=>caches.match("./index.html"))
     );
     return;
   }
-
   event.respondWith(
-    caches.match(req).then(cached => {
-      if (cached) return cached;
-      return fetch(req).then(async resp => {
-        try {
-          const cache = await caches.open(CACHE);
-          await cache.put(req, resp.clone());
-        } catch(e) {}
-        return resp;
-      });
-    })
+    caches.match(req).then(cached=>cached||fetch(req))
   );
-});
-
-self.addEventListener("message", event => {
-  if (event.data === "CHECK_OFFLINE") {
-    caches.open(CACHE).then(async cache => {
-      const results = await Promise.all(CORE.map(async url => !!(await cache.match(url))));
-      event.source?.postMessage({
-        type:"OFFLINE_STATUS",
-        ready:results.every(Boolean),
-        cached:results
-      });
-    });
-  }
 });
