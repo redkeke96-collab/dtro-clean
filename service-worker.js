@@ -1,4 +1,4 @@
-const CACHE = "dtro-clean-offline-v12-silent";
+const CACHE = "dtro-clean-offline-v13-touch-fix";
 const CORE = ["./index.html","./manifest.json","./tagu.png"];
 
 self.addEventListener("install", event => {
