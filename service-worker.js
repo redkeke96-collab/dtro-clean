@@ -1,8 +1,10 @@
-const CACHE = "dtro-clean-offline-v9-ios-sound";
+const CACHE = "dtro-clean-offline-v10-audiofiles";
 const CORE = [
   "./index.html",
   "./manifest.json",
-  "./tagu.png"
+  "./tagu.png",
+  "./click.wav","./correct.wav","./wrong.wav","./start.wav",
+  "./count.wav","./perfect.wav","./timeout.wav"
 ];
 
 async function cacheCore() {

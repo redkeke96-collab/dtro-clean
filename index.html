@@ -325,92 +325,64 @@ const $=id=>document.getElementById(id);
 function showPage(id){["startPage","quizPage","resultPage"].forEach(x=>$(x).classList.toggle("active",x===id))}
 function shuffle(a){return [...a].sort(()=>Math.random()-.5)}
 
-let audioCtx=null;
 let soundOn=true;
+const SFX={};
 
-async function initAudio(){
-  if(!soundOn) return false;
-  try{
-    if(!audioCtx){
-      const AC=window.AudioContext||window.webkitAudioContext;
-      if(!AC) return false;
-      audioCtx=new AC();
-    }
-    if(audioCtx.state==="suspended") await audioCtx.resume();
-
-    // iOS audio unlock: play a silent buffer during a user gesture.
-    const buffer=audioCtx.createBuffer(1,1,22050);
-    const source=audioCtx.createBufferSource();
-    source.buffer=buffer;
-    source.connect(audioCtx.destination);
-    source.start(0);
-    return audioCtx.state==="running";
-  }catch(e){ return false; }
+function setupAudio(){
+  const files={
+    click:"click.wav", correct:"correct.wav", wrong:"wrong.wav",
+    start:"start.wav", count:"count.wav", perfect:"perfect.wav",
+    timeout:"timeout.wav"
+  };
+  Object.entries(files).forEach(([k,src])=>{
+    const a=new Audio(src);
+    a.preload="auto";
+    a.volume=1.0;
+    SFX[k]=a;
+  });
 }
 
-function tone(freq=440,duration=.16,type="sine",volume=.22,delay=0){
-  if(!soundOn || !audioCtx || audioCtx.state!=="running") return;
+function playSfx(name){
+  if(!soundOn || !SFX[name]) return;
   try{
-    const t=audioCtx.currentTime+delay;
-    const osc=audioCtx.createOscillator();
-    const gain=audioCtx.createGain();
-    osc.type=type;
-    osc.frequency.setValueAtTime(freq,t);
-    gain.gain.setValueAtTime(0.0001,t);
-    gain.gain.exponentialRampToValueAtTime(volume,t+.015);
-    gain.gain.setValueAtTime(volume,t+Math.max(.025,duration*.45));
-    gain.gain.exponentialRampToValueAtTime(0.0001,t+duration);
-    osc.connect(gain); gain.connect(audioCtx.destination);
-    osc.start(t); osc.stop(t+duration+.04);
+    const a=SFX[name];
+    a.pause();
+    a.currentTime=0;
+    const p=a.play();
+    if(p && p.catch) p.catch(()=>{});
   }catch(e){}
 }
 
-function sfxStart(){
-  tone(520,.14,"sine",.20,0);
-  tone(660,.14,"sine",.22,.13);
-  tone(820,.22,"sine",.24,.26);
+// iOS: unlock every audio element from a direct user gesture.
+function unlockAudio(){
+  Object.values(SFX).forEach(a=>{
+    try{
+      a.muted=true;
+      const p=a.play();
+      if(p && p.then){
+        p.then(()=>{
+          a.pause(); a.currentTime=0; a.muted=false;
+        }).catch(()=>{ a.muted=false; });
+      }else{
+        a.pause(); a.currentTime=0; a.muted=false;
+      }
+    }catch(e){ a.muted=false; }
+  });
 }
-function sfxCount(n){
-  tone(n===0?920:610,n===0?.18:.12,"square",n===0?.20:.14,0);
-}
-function sfxCorrect(){
-  tone(700,.16,"sine",.25,0);
-  tone(980,.28,"sine",.28,.13);
-}
-function sfxWrong(){
-  tone(210,.22,"square",.22,0);
-  tone(145,.32,"sawtooth",.18,.16);
-}
-function sfxPerfect(){
-  [523,659,784,1047].forEach((f,i)=>tone(f,.30,"sine",.24,i*.14));
-}
-function sfxGood(){
-  tone(620,.16,"sine",.20,0);
-  tone(820,.25,"sine",.23,.14);
-}
-function sfxTimeout(){
-  tone(250,.20,"square",.18,0);
-  tone(180,.30,"square",.16,.18);
-}
+
+function sfxStart(){playSfx("start")}
+function sfxCount(){playSfx("count")}
+function sfxCorrect(){playSfx("correct")}
+function sfxWrong(){playSfx("wrong")}
+function sfxPerfect(){playSfx("perfect")}
+function sfxGood(){playSfx("correct")}
+function sfxTimeout(){playSfx("timeout")}
+
 function updateSoundButton(){
   const b=document.getElementById("soundToggle");
   if(b) b.textContent=soundOn?"🔊 소리":"🔇 무음";
 }
-
-// iOS can suspend WebAudio after interruptions/backgrounding.
-// Resume it on every subsequent user interaction.
-["touchstart","pointerdown","click"].forEach(ev=>{
-  document.addEventListener(ev,()=>{
-    if(soundOn && audioCtx && audioCtx.state==="suspended"){
-      audioCtx.resume().catch(()=>{});
-    }
-  },{passive:true});
-});
-document.addEventListener("visibilitychange",()=>{
-  if(!document.hidden && soundOn && audioCtx && audioCtx.state==="suspended"){
-    audioCtx.resume().catch(()=>{});
-  }
-});
+setupAudio();
 
 function stats(){
  const p=+(localStorage.getItem("players")||0),f=+(localStorage.getItem("perfects")||0);
@@ -466,14 +438,15 @@ function finish(){
 function reset(){
  $("timer").textContent="10.0";$("progress").style.width="100%";locked=false;timedOut=false;showPage("startPage");
 }
-$("startBtn").onclick=async ()=>{
-  await initAudio();
-  sfxStart();
-  setTimeout(countdown,420);
+$("startBtn").onclick=()=>{
+  unlockAudio();
+  playSfx("click");
+  setTimeout(sfxStart,80);
+  setTimeout(countdown,430);
 };
-$("soundToggle").onclick=async ()=>{
+$("soundToggle").onclick=()=>{
   soundOn=!soundOn;
-  if(soundOn){ await initAudio(); tone(760,.16,"sine",.22); }
+  if(soundOn){ unlockAudio(); setTimeout(()=>playSfx("click"),60); }
   updateSoundButton();
 };
 updateSoundButton();
@@ -485,8 +458,8 @@ $("startReset").onclick=()=>{
     stats();
   }
 };
-$("btnO").onclick=async ()=>{await initAudio();answer("O");};
-$("btnX").onclick=async ()=>{await initAudio();answer("X");};
+$("btnO").onclick=()=>{playSfx("click");setTimeout(()=>answer("O"),55);};
+$("btnX").onclick=()=>{playSfx("click");setTimeout(()=>answer("X"),55);};
 $("adminHot").onclick=()=>{$("adminPanel").classList.add("show");stats()};
 $("closeAdmin").onclick=()=>$("adminPanel").classList.remove("show");
 $("resetStats").onclick=()=>{localStorage.setItem("players","0");localStorage.setItem("perfects","0");stats()};
