@@ -1,4 +1,4 @@
-const CACHE = "dtro-clean-offline-v14-30questions";
+const CACHE = "dtro-clean-offline-v15-30q-label-fix";
 const CORE = ["./index.html","./manifest.json","./tagu.png"];
 
 self.addEventListener("install", event => {
